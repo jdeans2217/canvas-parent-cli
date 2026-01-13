@@ -1,0 +1,21 @@
+# Credentials and environment
+.env
+
+# Generated data with personal info
+site_map.json
+
+# Archive folder (contains hardcoded API keys)
+archive/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
