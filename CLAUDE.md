@@ -43,7 +43,32 @@ canvas-parent-cli/
 - Mistral OCR homework scanner
 - Email attachment processing
 
+### Priority: Canvas API Exploration
+Different teachers use Canvas differently - need to audit each course to capture all available data:
+- Some teachers use Modules, others don't
+- Grading schemes vary (weighted categories, points-based, etc.)
+- Some use Announcements, others use Pages for updates
+- Assignment types differ (online submission, paper, external tools)
+- Some courses have rubrics, others don't
+- Discussion boards usage varies
+- File organization differs by teacher
+
+**Tools for exploration:**
+- `tools/api_explorer.py` - Interactive endpoint testing
+- `python -c "from canvas_api import ..."` - Quick API calls
+- Check each course individually for available endpoints
+
+**Key endpoints to audit per course:**
+- `/courses/{id}/modules` - Content organization
+- `/courses/{id}/assignment_groups` - Grading weights
+- `/courses/{id}/rubrics` - Grading criteria
+- `/courses/{id}/discussion_topics` - Discussions & announcements
+- `/courses/{id}/pages` - Wiki/content pages
+- `/courses/{id}/external_tools` - Third-party integrations
+- `/courses/{id}/tabs` - What's enabled for the course
+
 ### In Progress / Planned
+- [ ] **Canvas API audit** - Explore all courses for unused data sources
 - [ ] LLM-powered study guide generator
 - [ ] Google Docs export
 - [ ] Grade trend alerts
