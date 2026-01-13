@@ -1,5 +1,7 @@
 # Credentials and environment
 .env
+credentials.json
+token.json
 
 # Generated data with personal info
 site_map.json

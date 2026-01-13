@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Grade Report - {{ student_name }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            font-size: 1.3em;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+
+        /* Grade colors */
+        .grade-a { color: #27ae60; font-weight: bold; }
+        .grade-b { color: #2ecc71; font-weight: bold; }
+        .grade-c { color: #f39c12; font-weight: bold; }
+        .grade-d { color: #e74c3c; font-weight: bold; }
+        .grade-f { color: #c0392b; font-weight: bold; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Alert boxes */
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .alert-danger {
+            background-color: #fadbd8;
+            border-left: 4px solid #e74c3c;
+            color: #922b21;
+        }
+        .alert-warning {
+            background-color: #fdebd0;
+            border-left: 4px solid #f39c12;
+            color: #9a7b4f;
+        }
+        .alert-success {
+            background-color: #d5f5e3;
+            border-left: 4px solid #27ae60;
+            color: #1e8449;
+        }
+        .alert-info {
+            background-color: #d6eaf8;
+            border-left: 4px solid #3498db;
+            color: #21618c;
+        }
+
+        /* Due date urgency */
+        .due-today { color: #e74c3c; font-weight: bold; }
+        .due-tomorrow { color: #f39c12; font-weight: bold; }
+        .due-soon { color: #3498db; }
+
+        /* Chart container */
+        .chart-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+            font-size: 0.85em;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        /* Summary stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        /* No data message */
+        .no-data {
+            color: #95a5a6;
+            font-style: italic;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Daily Report: {{ student_name }}</h1>
+        <p style="color: #7f8c8d;">{{ report_date }}</p>
+
+        <!-- Summary Stats -->
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-value">{{ courses|length }}</div>
+                <div class="stat-label">Active Courses</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value {% if missing_count > 0 %}grade-d{% else %}grade-a{% endif %}">{{ missing_count }}</div>
+                <div class="stat-label">Missing Assignments</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">{{ upcoming_count }}</div>
+                <div class="stat-label">Due This Week</div>
+            </div>
+            {% if average_grade %}
+            <div class="stat-box">
+                <div class="stat-value {{ average_grade_class }}">{{ average_grade }}%</div>
+                <div class="stat-label">Average Grade</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Missing Assignments Alert -->
+        {% if missing_assignments %}
+        <div class="section">
+            <h2>⚠️ Missing Assignments</h2>
+            <div class="alert alert-danger">
+                <strong>{{ missing_assignments|length }} assignment(s) need attention!</strong>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Assignment</th>
+                        <th>Course</th>
+                        <th>Due Date</th>
+                        <th>Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in missing_assignments %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.course_name }}</td>
+                        <td class="due-today">{{ item.due_date }}</td>
+                        <td>{{ item.points_possible }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Current Grades -->
+        <div class="section">
+            <h2>📊 Current Grades</h2>
+            {% if grades_chart %}
+            <div class="chart-container">
+                <img src="cid:grades_chart" alt="Grades Chart">
+            </div>
+            {% endif %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Course</th>
+                        <th>Score</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                    <tr>
+                        <td>{{ course.name }}</td>
+                        <td>{{ course.score|default('--', true) }}%</td>
+                        <td class="{{ course.grade_class }}">{{ course.grade|default('--', true) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Upcoming Assignments -->
+        {% if upcoming_assignments %}
+        <div class="section">
+            <h2>📅 Upcoming Assignments (Next 7 Days)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Assignment</th>
+                        <th>Course</th>
+                        <th>Due Date</th>
+                        <th>Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in upcoming_assignments %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.course_name }}</td>
+                        <td class="{{ item.urgency_class }}">{{ item.due_date }}</td>
+                        <td>{{ item.points_possible }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="section">
+            <h2>📅 Upcoming Assignments</h2>
+            <div class="alert alert-success">
+                No assignments due in the next 7 days! 🎉
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recently Graded -->
+        {% if recent_grades %}
+        <div class="section">
+            <h2>✅ Recently Graded (Last 7 Days)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Assignment</th>
+                        <th>Course</th>
+                        <th>Score</th>
+                        <th>Graded</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in recent_grades %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.course_name }}</td>
+                        <td>{{ item.score }}/{{ item.points_possible }} ({{ item.percentage }}%)</td>
+                        <td>{{ item.graded_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Grade Alerts -->
+        {% if grade_alerts %}
+        <div class="section">
+            <h2>🔔 Grade Alerts</h2>
+            {% for alert in grade_alerts %}
+            <div class="alert alert-warning">
+                <strong>{{ alert.course }}</strong>: {{ alert.message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <p>Generated by Canvas Parent CLI</p>
+            <p>Report generated at {{ generated_at }}</p>
+        </div>
+    </div>
+</body>
+</html>

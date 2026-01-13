@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project provides a CLI tool for parents to monitor their children's academic progress at Thales Academy through the Canvas LMS API. The system uses a parent/observer account to access student data.
+This project provides a CLI tool for parents to monitor their children's academic progress through the Canvas LMS API. The system uses a parent/observer account to access student data.
 
 ---
 
