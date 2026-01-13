@@ -1,2 +1,36 @@
+# Core dependencies
 requests>=2.28.0
 python-dotenv>=1.0.0
+
+# Google APIs
+google-api-python-client>=2.0.0
+google-auth-httplib2>=0.1.0
+google-auth-oauthlib>=0.5.0
+
+# Database
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# Visualization
+matplotlib>=3.5.0
+numpy>=1.21.0
+
+# Templating
+jinja2>=3.0.0
+
+# Scheduling
+schedule>=1.1.0
+
+# OCR - Mistral
+mistralai>=1.0.0
+
+# AI/LLM Providers (optional - install as needed)
+# openai>=1.0.0           # OpenAI API
+# google-generativeai     # Gemini API
+# anthropic>=0.18.0       # Claude API
+# httpx>=0.25.0           # For Ollama HTTP calls
+
+# PDF handling (optional)
+# reportlab>=4.0.0        # PDF generation
+# PyPDF2>=3.0.0           # PDF manipulation

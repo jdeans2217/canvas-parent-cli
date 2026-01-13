@@ -102,11 +102,16 @@ class LLMConfig:
 class ScannerConfig:
     """Document scanning configuration."""
     watch_folder: str = ""
-    ocr_provider: str = "tesseract"  # tesseract or google_vision
+    ocr_provider: str = "mistral"  # mistral, tesseract, or google_vision
+    mistral_api_key: str = ""
     google_vision_credentials: str = ""
 
     def is_valid(self) -> bool:
-        return bool(self.watch_folder)
+        if self.ocr_provider == "mistral":
+            return bool(self.mistral_api_key)
+        elif self.ocr_provider == "google_vision":
+            return bool(self.google_vision_credentials)
+        return True  # tesseract doesn't need credentials
 
 
 @dataclass
@@ -167,7 +172,8 @@ def load_config() -> Config:
 
     # Scanner
     config.scanner.watch_folder = os.getenv("SCAN_WATCH_FOLDER", "")
-    config.scanner.ocr_provider = os.getenv("OCR_PROVIDER", "tesseract")
+    config.scanner.ocr_provider = os.getenv("OCR_PROVIDER", "mistral")
+    config.scanner.mistral_api_key = os.getenv("MISTRAL_API_KEY", "")
     config.scanner.google_vision_credentials = os.getenv("GOOGLE_VISION_CREDENTIALS", "")
 
     return config
@@ -228,6 +234,8 @@ def print_config_status(config: Config):
     print(f"\nDocument Scanner:")
     print(f"  Watch Folder: {config.scanner.watch_folder or 'NOT SET'}")
     print(f"  OCR Provider: {config.scanner.ocr_provider}")
+    if config.scanner.ocr_provider == "mistral":
+        print(f"  Mistral API Key: {'*' * 20}..." if config.scanner.mistral_api_key else "  Mistral API Key: NOT SET")
     print(f"  Status: {'OK' if config.scanner.is_valid() else 'NOT CONFIGURED'}")
 
 

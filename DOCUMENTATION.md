@@ -310,8 +310,205 @@ python site_mapper.py
 
 ---
 
+---
+
+## Homework Scanner Module
+
+### Overview
+The scanner module processes photos of homework, tests, and worksheets using Mistral OCR, extracts grade information, and matches documents to Canvas assignments.
+
+### Components
+
+| File | Purpose |
+|------|---------|
+| `scanner/ocr.py` | Mistral OCR wrapper for text extraction |
+| `scanner/parser.py` | Extract grades, dates, titles from OCR text |
+| `scanner/matcher.py` | Match scanned docs to Canvas assignments |
+| `scanner/email_processor.py` | Process homework photos from Gmail |
+
+### Supported Formats
+- **Images**: PNG, JPEG, WEBP, GIF
+- **Documents**: PDF
+
+### OCR Processing Flow
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Image/PDF  │────►│  Mistral OCR │────►│    Parser    │────►│   Matcher    │
+│              │     │              │     │              │     │              │
+│ homework.jpg │     │ Extract text │     │ Find scores  │     │ Link to      │
+│              │     │              │     │ Find dates   │     │ Canvas       │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+```
+
+### Parser Capabilities
+
+The grade parser extracts:
+- **Scores**: `42/50`, `85%`, `Score: 90`
+- **Letter Grades**: `A+`, `B-`, `Grade: C`
+- **Dates**: `01/15/2024`, `January 15, 2024`, `2024-01-15`
+- **Titles**: Assignment names, chapter/unit headers
+- **Student Names**: From "Name:" fields
+- **Course Names**: Subject identifiers
+
+### Assignment Matching
+
+Matching uses weighted scoring:
+- **Title Similarity**: 50% (fuzzy string matching)
+- **Date Proximity**: 30% (within 7 days of due date)
+- **Course Name**: 20% (course name matching)
+
+Confidence threshold: 70% for automatic matching
+
+### Database Schema
+
+Scanned documents are stored in the `scanned_documents` table:
+
+```sql
+scanned_documents (
+  id,
+  student_id,          -- FK to students
+  assignment_id,       -- FK to assignments (nullable if unmatched)
+  file_path,
+  file_name,
+  mime_type,
+  scan_date,
+  source,              -- 'email', 'manual', etc.
+  ocr_text,
+  detected_title,
+  detected_date,
+  detected_score,
+  detected_max_score,
+  canvas_score,        -- For comparison
+  score_discrepancy,   -- Alerts if different
+  match_confidence,
+  match_method,        -- 'title', 'date', 'title+date'
+  verified             -- Manual verification flag
+)
+```
+
+---
+
+## Planned: iMessage Integration
+
+### Architecture
+
+For users with a spare Mac, native iMessage integration enables:
+- Receiving homework photos via text message
+- Sending grade alerts to parents
+- Two-way communication without email
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Mac Host (iMessage)                       │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │ Messages.app│    │ chat.db     │    │ Attachments │         │
+│  │             │    │ (SQLite)    │    │ folder      │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│         │                  │                  │                  │
+│         ▼                  ▼                  ▼                  │
+│  ┌──────────────────────────────────────────────────────┐      │
+│  │              Python iMessage Service                  │      │
+│  │  - Monitor chat.db for new messages                  │      │
+│  │  - Extract image attachments                         │      │
+│  │  - Send messages via AppleScript                     │      │
+│  │  - REST API for Linux server                         │      │
+│  └──────────────────────────────────────────────────────┘      │
+│                             │                                    │
+└─────────────────────────────│────────────────────────────────────┘
+                              │ HTTP API
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Linux Server (Main App)                      │
+├─────────────────────────────────────────────────────────────────┤
+│  - Canvas API integration                                        │
+│  - PostgreSQL database                                           │
+│  - Mistral OCR processing                                        │
+│  - Report generation                                             │
+│  - iMessage client (calls Mac API)                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Mac Service Components
+
+| Component | Purpose |
+|-----------|---------|
+| `imessage/monitor.py` | Watch chat.db for incoming messages |
+| `imessage/sender.py` | Send messages via AppleScript |
+| `imessage/api.py` | REST API server (Flask/FastAPI) |
+| `imessage/attachments.py` | Extract and process image attachments |
+
+### Key Files on Mac
+
+| Path | Purpose |
+|------|---------|
+| `~/Library/Messages/chat.db` | SQLite database of all messages |
+| `~/Library/Messages/Attachments/` | Received files and images |
+
+### AppleScript for Sending
+
+```applescript
+tell application "Messages"
+    set targetService to 1st service whose service type = iMessage
+    set targetBuddy to buddy "+15551234567" of targetService
+    send "Grade Alert: Math score dropped to 75%" to targetBuddy
+end tell
+```
+
+### Security Considerations
+
+- Mac must grant Terminal/Python "Full Disk Access" for chat.db
+- Messages app must be signed into iCloud
+- API should use authentication tokens
+- Consider TLS for HTTP communication
+
+---
+
+## Planned: SMS/Twilio Integration
+
+### Alternative for Non-Mac Users
+
+Twilio provides cross-platform messaging:
+
+```python
+# Example Twilio integration
+from twilio.rest import Client
+
+client = Client(account_sid, auth_token)
+
+# Send SMS alert
+message = client.messages.create(
+    body="Grade Alert: JJ's Math score is now 85%",
+    from_="+15551234567",  # Your Twilio number
+    to="+15559876543"       # Parent's phone
+)
+
+# Receive MMS (webhook endpoint)
+@app.route("/sms/incoming", methods=["POST"])
+def incoming_sms():
+    media_url = request.form.get("MediaUrl0")  # Homework photo
+    # Process through OCR pipeline
+```
+
+### Twilio Costs (Approximate)
+
+| Item | Cost |
+|------|------|
+| Phone Number | $1.15/month |
+| Outbound SMS | $0.0079/message |
+| Inbound SMS | $0.0075/message |
+| MMS (photos) | $0.02/message |
+
+---
+
 ## Revision History
 
+- **2026-01-13**: Added homework scanner with Mistral OCR
+- **2026-01-13**: Added planned iMessage/Twilio documentation
+- **2026-01-12**: Added Google Calendar integration
+- **2026-01-12**: Added Gmail email reports
+- **2026-01-11**: Added PostgreSQL database and migrations
 - **2026-01-05**: Initial comprehensive documentation
 - **2026-01-05**: CLI tool completed with full feature set
 - **2026-01-05**: Site mapping completed for both students

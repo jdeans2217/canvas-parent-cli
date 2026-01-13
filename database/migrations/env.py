@@ -32,8 +32,8 @@ target_metadata = Base.metadata
 
 # Get database URL from our config
 app_config = get_config()
-if app_config.database.url:
-    config.set_main_option("sqlalchemy.url", app_config.database.url)
+# Store URL directly (avoid configparser % interpolation issues)
+_database_url = app_config.database.url
 
 
 def run_migrations_offline() -> None:
@@ -47,15 +47,14 @@ def run_migrations_offline() -> None:
     Calls to context.execute() here emit the given string to the
     script output.
     """
-    url = config.get_main_option("sqlalchemy.url")
-    if not url or url == "driver://user:pass@localhost/dbname":
+    if not _database_url:
         raise ValueError(
             "DATABASE_URL not configured. Set it in .env file.\n"
             "Example: DATABASE_URL=postgresql://user:pass@localhost:5432/canvas_parent"
         )
 
     context.configure(
-        url=url,
+        url=_database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -71,18 +70,15 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine
     and associate a connection with the context.
     """
-    url = config.get_main_option("sqlalchemy.url")
-    if not url or url == "driver://user:pass@localhost/dbname":
+    from sqlalchemy import create_engine
+
+    if not _database_url:
         raise ValueError(
             "DATABASE_URL not configured. Set it in .env file.\n"
             "Example: DATABASE_URL=postgresql://user:pass@localhost:5432/canvas_parent"
         )
 
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = create_engine(_database_url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(
