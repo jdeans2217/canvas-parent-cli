@@ -131,6 +131,8 @@ def get_student_courses(student_id: int, active_only: bool = True) -> List[Dict]
     Returns:
         List of course objects
     """
+    from datetime import timezone
+
     params = {"include[]": "term", "per_page": 100}
     if active_only:
         params["enrollment_state"] = "active"
@@ -139,8 +141,8 @@ def get_student_courses(student_id: int, active_only: bool = True) -> List[Dict]
     if not courses:
         return []
 
-    # Filter current term courses
-    now = datetime.now()
+    # Filter current term courses - use UTC for comparison since API returns UTC dates
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     result = []
     for c in courses:
         term = c.get("term", {})
@@ -251,10 +253,11 @@ def get_upcoming_assignments(student_id: int, days: int = 7) -> List[Dict]:
     Returns:
         List of assignments due within the specified days
     """
-    from datetime import timedelta
+    from datetime import timedelta, timezone
 
     courses = get_student_courses(student_id)
-    now = datetime.now()
+    # Use UTC for comparison since API returns UTC dates
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     cutoff = now + timedelta(days=days)
     upcoming = []
 
@@ -327,10 +330,11 @@ def get_recent_grades(student_id: int, days: int = 7) -> List[Dict]:
     Returns:
         List of recently graded submissions
     """
-    from datetime import timedelta
+    from datetime import timedelta, timezone
 
     courses = get_student_courses(student_id)
-    now = datetime.now()
+    # Use UTC for comparison since API returns UTC dates
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     cutoff = now - timedelta(days=days)
     recent = []
 
@@ -401,6 +405,20 @@ def get_course_pages(course_id: int) -> List[Dict]:
         List of page objects
     """
     return api_get_all(f"/courses/{course_id}/pages") or []
+
+
+def get_page_content(course_id: int, page_url: str) -> Optional[Dict]:
+    """
+    Get a single page with its full HTML body content.
+
+    Args:
+        course_id: Canvas course ID
+        page_url: Page URL slug (from the 'url' field in page listing)
+
+    Returns:
+        Page object with 'body' containing HTML content, or None on failure
+    """
+    return api_get(f"/courses/{course_id}/pages/{page_url}")
 
 
 # =============================================================================

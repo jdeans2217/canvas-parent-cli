@@ -54,6 +54,51 @@ class CalendarConfig:
 
 
 @dataclass
+class DriveConfig:
+    """Google Drive scanning configuration."""
+    enabled: bool = False
+    polling_interval: int = 300  # seconds
+    move_to_processed: bool = True  # Move to student folder after processing
+    # Shared folder for all scans (smart detection determines student)
+    shared_folder_id: str = ""
+    # Per-student folders (optional override)
+    student_folders: dict = field(default_factory=dict)  # student_name -> folder_id
+    # Notification settings
+    notification_email: str = ""
+    assign_base_url: str = "http://localhost:5000"
+    # Detection confidence threshold (0-100)
+    confidence_threshold: int = 70
+
+    def is_valid(self) -> bool:
+        return bool(self.shared_folder_id or self.student_folders)
+
+
+@dataclass
+class DropboxConfig:
+    """Dropbox scanning configuration."""
+    enabled: bool = False
+    app_key: str = ""
+    app_secret: str = ""
+    polling_interval: int = 300  # seconds
+    move_to_processed: bool = True
+    # Scan folder within app folder (empty = root)
+    scan_folder: str = ""
+    # Per-student folders (relative paths within app folder)
+    student_folders: dict = field(default_factory=dict)  # student_name -> folder_path
+    # Detection confidence threshold (0-100)
+    confidence_threshold: int = 70
+
+    def is_valid(self) -> bool:
+        return bool(self.app_key and self.app_secret)
+
+
+@dataclass
+class CloudConfig:
+    """Cloud storage provider selection."""
+    provider: str = "google_drive"  # "google_drive" or "dropbox"
+
+
+@dataclass
 class LLMConfig:
     """LLM provider configuration (provider-agnostic)."""
     provider: str = "ollama"  # ollama, openai, gemini, or claude
@@ -121,6 +166,9 @@ class Config:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     email: EmailConfig = field(default_factory=EmailConfig)
     calendar: CalendarConfig = field(default_factory=CalendarConfig)
+    drive: DriveConfig = field(default_factory=DriveConfig)
+    dropbox: DropboxConfig = field(default_factory=DropboxConfig)
+    cloud: CloudConfig = field(default_factory=CloudConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     scanner: ScannerConfig = field(default_factory=ScannerConfig)
 
@@ -158,6 +206,39 @@ def load_config() -> Config:
         if key.startswith("CALENDAR_STUDENT_") and key.endswith("_ID"):
             student_key = key.replace("CALENDAR_STUDENT_", "").replace("_ID", "")
             config.calendar.student_calendars[student_key] = value
+
+    # Drive scanning
+    config.drive.enabled = os.getenv("DRIVE_SCANNING_ENABLED", "false").lower() == "true"
+    config.drive.polling_interval = int(os.getenv("DRIVE_POLLING_INTERVAL", "300"))
+    config.drive.move_to_processed = os.getenv("DRIVE_MOVE_TO_PROCESSED", "true").lower() == "true"
+    config.drive.shared_folder_id = os.getenv("DRIVE_SHARED_FOLDER_ID", "")
+    config.drive.notification_email = os.getenv("NOTIFICATION_EMAIL", "")
+    config.drive.assign_base_url = os.getenv("ASSIGN_BASE_URL", "http://localhost:5000")
+    config.drive.confidence_threshold = int(os.getenv("DRIVE_CONFIDENCE_THRESHOLD", "70"))
+
+    # Load per-student Drive folder IDs (format: DRIVE_{NAME}_FOLDER_ID)
+    for key, value in os.environ.items():
+        if key.startswith("DRIVE_") and key.endswith("_FOLDER_ID") and key != "DRIVE_SHARED_FOLDER_ID":
+            student_name = key.replace("DRIVE_", "").replace("_FOLDER_ID", "")
+            config.drive.student_folders[student_name] = value
+
+    # Dropbox scanning
+    config.dropbox.enabled = os.getenv("DROPBOX_ENABLED", "false").lower() == "true"
+    config.dropbox.app_key = os.getenv("DROPBOX_APP_KEY", "")
+    config.dropbox.app_secret = os.getenv("DROPBOX_APP_SECRET", "")
+    config.dropbox.polling_interval = int(os.getenv("DROPBOX_POLLING_INTERVAL", "300"))
+    config.dropbox.move_to_processed = os.getenv("DROPBOX_MOVE_TO_PROCESSED", "true").lower() == "true"
+    config.dropbox.scan_folder = os.getenv("DROPBOX_SCAN_FOLDER", "")
+    config.dropbox.confidence_threshold = int(os.getenv("DROPBOX_CONFIDENCE_THRESHOLD", "70"))
+
+    # Load per-student Dropbox folder paths (format: DROPBOX_{NAME}_FOLDER)
+    for key, value in os.environ.items():
+        if key.startswith("DROPBOX_") and key.endswith("_FOLDER") and key != "DROPBOX_SCAN_FOLDER":
+            student_name = key.replace("DROPBOX_", "").replace("_FOLDER", "")
+            config.dropbox.student_folders[student_name] = value
+
+    # Cloud provider selection
+    config.cloud.provider = os.getenv("CLOUD_PROVIDER", "google_drive")
 
     # LLM
     config.llm.provider = os.getenv("LLM_PROVIDER", "ollama")
@@ -224,6 +305,45 @@ def print_config_status(config: Config):
     print(f"\nCalendar:")
     print(f"  Enabled: {config.calendar.enabled}")
     print(f"  Student Calendars: {len(config.calendar.student_calendars)}")
+
+    # Drive
+    print(f"\nDrive Scanning:")
+    print(f"  Enabled: {config.drive.enabled}")
+    print(f"  Polling Interval: {config.drive.polling_interval}s")
+    print(f"  Move to Processed: {config.drive.move_to_processed}")
+    print(f"  Confidence Threshold: {config.drive.confidence_threshold}%")
+    if config.drive.shared_folder_id:
+        shared_id = config.drive.shared_folder_id
+        print(f"  Shared Folder: {shared_id[:20]}..." if len(shared_id) > 20 else f"  Shared Folder: {shared_id}")
+    print(f"  Student Folders: {len(config.drive.student_folders)}")
+    for name, folder_id in config.drive.student_folders.items():
+        print(f"    {name}: {folder_id[:20]}..." if len(folder_id) > 20 else f"    {name}: {folder_id}")
+    if config.drive.notification_email:
+        print(f"  Notification Email: {config.drive.notification_email}")
+    if config.drive.assign_base_url != "http://localhost:5000":
+        print(f"  Assignment URL: {config.drive.assign_base_url}")
+    print(f"  Status: {'OK' if config.drive.is_valid() else 'NOT CONFIGURED'}")
+
+    # Dropbox
+    print(f"\nDropbox Scanning:")
+    print(f"  Enabled: {config.dropbox.enabled}")
+    if config.dropbox.app_key:
+        print(f"  App Key: {config.dropbox.app_key[:8]}...")
+    else:
+        print(f"  App Key: NOT SET")
+    print(f"  Polling Interval: {config.dropbox.polling_interval}s")
+    print(f"  Move to Processed: {config.dropbox.move_to_processed}")
+    print(f"  Confidence Threshold: {config.dropbox.confidence_threshold}%")
+    if config.dropbox.scan_folder:
+        print(f"  Scan Folder: {config.dropbox.scan_folder}")
+    print(f"  Student Folders: {len(config.dropbox.student_folders)}")
+    for name, folder_path in config.dropbox.student_folders.items():
+        print(f"    {name}: {folder_path}")
+    print(f"  Status: {'OK' if config.dropbox.is_valid() else 'NOT CONFIGURED'}")
+
+    # Cloud Provider
+    print(f"\nCloud Provider:")
+    print(f"  Active: {config.cloud.provider}")
 
     # LLM
     print(f"\nLLM Provider:")

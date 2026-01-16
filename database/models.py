@@ -132,7 +132,7 @@ class ScannedDocument(Base):
     __tablename__ = "scanned_documents"
 
     id = Column(Integer, primary_key=True)
-    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=True)  # Nullable for pending docs
     assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=True)  # May be unmatched
 
     # File information
@@ -140,10 +140,16 @@ class ScannedDocument(Base):
     file_name = Column(String(255), nullable=False)
     file_size = Column(Integer)  # Bytes
     mime_type = Column(String(100))
+    file_hash = Column(String(64), index=True)  # SHA256 hash for duplicate detection
 
     # Scan metadata
     scan_date = Column(DateTime, default=datetime.utcnow)
     source = Column(String(50))  # e.g., "snap_scan", "email", "manual_upload"
+
+    # Document status for smart detection workflow
+    status = Column(String(20), default="processed")  # processed, pending, failed
+    detection_confidence = Column(Float)  # 0-100, confidence of student detection
+    detection_method = Column(String(50))  # e.g., "ocr_name", "course_match", "assignment_match", "ambiguous"
 
     # OCR results
     ocr_text = Column(Text)
@@ -166,9 +172,13 @@ class ScannedDocument(Base):
     verified_at = Column(DateTime)
     verified_by = Column(String(100))
 
-    # Cloud storage
+    # Google Drive storage
     drive_file_id = Column(String(255))  # Google Drive file ID
     drive_url = Column(String(1000))
+
+    # Dropbox storage
+    dropbox_path = Column(String(1000))  # Full path in Dropbox app folder
+    dropbox_url = Column(String(1000))   # Shared link URL
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -176,6 +186,7 @@ class ScannedDocument(Base):
     __table_args__ = (
         Index("ix_scanned_student_date", "student_id", "scan_date"),
         Index("ix_scanned_unmatched", "assignment_id", postgresql_where=(assignment_id.is_(None))),
+        Index("ix_scanned_pending", "status", postgresql_where=(status == "pending")),
     )
 
     # Relationships

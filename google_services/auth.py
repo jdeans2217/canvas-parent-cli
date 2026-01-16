@@ -33,8 +33,7 @@ SCOPES = {
         "https://www.googleapis.com/auth/documents",
     ],
     "drive": [
-        "https://www.googleapis.com/auth/drive.file",
-        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/drive",
     ],
 }
 
@@ -134,9 +133,8 @@ class GoogleAuth:
         # Try to load existing token
         if os.path.exists(self.token_file):
             try:
-                creds = Credentials.from_authorized_user_file(
-                    self.token_file, self.scopes
-                )
+                # Load without scope validation - token scopes may differ from requested
+                creds = Credentials.from_authorized_user_file(self.token_file)
             except Exception as e:
                 print(f"Failed to load token: {e}")
 

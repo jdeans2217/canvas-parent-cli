@@ -42,6 +42,10 @@ canvas-parent-cli/
 - Google Calendar sync (per-student calendars)
 - Mistral OCR homework scanner
 - Email attachment processing
+- Google Drive scanning integration
+- Dropbox integration (code complete, see TODO below)
+- Smart student detection (cover sheets, name matching)
+- File hash duplicate detection
 
 ### Priority: Canvas API Exploration
 Different teachers use Canvas differently - need to audit each course to capture all available data:
@@ -69,6 +73,11 @@ Different teachers use Canvas differently - need to audit each course to capture
 
 ### In Progress / Planned
 - [ ] **Canvas API audit** - Explore all courses for unused data sources
+- [ ] **Dropbox Full Access** - Change app permissions to access SnapScan folder
+  - Current app uses "App Folder" access (limited to `Dropbox/Apps/canvas_parent/`)
+  - SnapScan saves to its own folder (e.g., `Dropbox/snapscan/`) which we can't access
+  - Need to: Go to Dropbox App Console → canvas_parent app → Settings → Change to "Full Dropbox"
+  - Then re-authenticate with `python -m cli.process_dropbox auth`
 - [ ] LLM-powered study guide generator
 - [ ] Google Docs export
 - [ ] Grade trend alerts
@@ -85,7 +94,8 @@ Different teachers use Canvas differently - need to audit each course to capture
 |---------|--------------|---------|
 | Canvas | `CANVAS_API_KEY` | LMS data access |
 | Mistral | `MISTRAL_API_KEY` | OCR processing |
-| Google | `credentials.json` + `token.json` | Gmail/Calendar |
+| Google | `credentials.json` + `token.json` | Gmail/Calendar/Drive |
+| Dropbox | `DROPBOX_APP_KEY` + `DROPBOX_APP_SECRET` | Alternative cloud storage (optional) |
 
 ## Common Commands
 ```bash
@@ -94,6 +104,14 @@ python canvas_cli.py
 
 # Process homework photo
 python -m cli.process_scan file /path/to/image.jpg
+
+# Process Google Drive scans
+python -m cli.process_drive scan
+
+# Process Dropbox scans (requires full access setup)
+python -m cli.process_dropbox auth    # Authenticate
+python -m cli.process_dropbox scan    # Process files
+python -m cli.process_dropbox status  # Check config
 
 # Send email report
 python -m cli.send_report --type daily
@@ -113,3 +131,4 @@ alembic upgrade head
 - Google OAuth needs proper credentials.json from Google Cloud Console
 - The plan file at `.claude/plans/mossy-sprouting-snail.md` has the full implementation plan
 - iMessage integration documented but not yet implemented (requires Mac host)
+- **Dropbox**: Code is complete but app needs "Full Dropbox" access to read SnapScan folder (see In Progress section)

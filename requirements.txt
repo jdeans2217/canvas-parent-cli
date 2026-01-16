@@ -7,6 +7,9 @@ google-api-python-client>=2.0.0
 google-auth-httplib2>=0.1.0
 google-auth-oauthlib>=0.5.0
 
+# Dropbox API
+dropbox>=11.36.0
+
 # Database
 psycopg2-binary>=2.9.0
 sqlalchemy>=2.0.0

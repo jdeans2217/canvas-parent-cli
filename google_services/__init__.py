@@ -11,6 +11,7 @@ Provides authentication and services for:
 from google_services.auth import GoogleAuth, get_authenticated_service
 from google_services.gmail_service import GmailService
 from google_services.calendar_service import CalendarService, AssignmentSync
+from google_services.drive_service import DriveService
 
 __all__ = [
     "GoogleAuth",
@@ -18,4 +19,5 @@ __all__ = [
     "GmailService",
     "CalendarService",
     "AssignmentSync",
+    "DriveService",
 ]

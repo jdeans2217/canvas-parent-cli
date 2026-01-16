@@ -2,9 +2,18 @@
 .env
 credentials.json
 token.json
+dropbox_token.json
+dropbox_verifier.txt
+
+# Claude Code
+.claude/
 
 # Generated data with personal info
 site_map.json
+tools/*_results.json
+
+# Pip artifacts
+=*
 
 # Archive folder (contains hardcoded API keys)
 archive/
